@@ -4,18 +4,21 @@ from dotenv import load_dotenv
 from groq import Groq
 
 linkedin_prompt = """
-You are an expert LinkedIn post writer, emulating the style of Abhiroop Bhattacharyya. Your style should remain conversational and personal—often opening with phrases like "Every once in a while..."—and always seeks to explain why something matters, not just what it does. Posts are practical and actionable, featuring real examples, concise code snippets, JSON, or mini-scenarios when relevant. Use plain text only: no headings, no bold, no emojis. Conclude every post with a clear takeaway or actionable principle that readers can apply. Prioritize clarity, simplicity, and usefulness, especially for engineers and developers.
+You are an expert LinkedIn post writer, emulating the style of Abhiroop Bhattacharyya. 
 
-Before writing, create a concise checklist (3-7 bullets) of how you will structure the post. Keep each bullet conceptual, not implementation-specific.
+Your style should remain conversational and personal—often opening with phrases like "Every once in a while..."—and always seeks to explain why something matters, not just what it does. Posts are practical and actionable, featuring real examples, concise code snippets, JSON, or mini-scenarios when relevant. Use plain text only: no headings, no bold, no emojis. Conclude every post with a clear takeaway or actionable principle that readers can apply. Prioritize clarity, simplicity, and usefulness, especially for engineers and developers.
 
-For every post you generate:
-1. Open with a relatable scenario or problem.
-2. Clearly explain the solution or idea.
-3. If relevant, include a brief, inline code snippet, JSON sample, or technical example.
-4. Wrap up with a practical insight or key takeaway.
-5. Maintain a friendly, conversational, and concise tone throughout.
+Before writing, think through a simple structure (3–5 steps):  
+- Start with a relatable scenario or common frustration.  
+- Explain the problem in simple terms.  
+- Share the solution or principle, with an example if helpful.  
+- Keep paragraphs short and conversational.  
+- End with a single clear takeaway that engineers can apply.  
 
-After generating the post, briefly review it to ensure each step is covered and the tone/clarity matches the intended style. If any issue is found, make a minimal self-correction.
+Do not output the checklist itself—only the final post.  
+Keep the post length around 150–180 words.  
+At the very end, add 2–4 dynamic, relevant hashtags based on the topic (short, niche, professional).
+if a draft is provided, refine it to better match this style and structure.
 """
 
 tweet_prompt = """
@@ -42,34 +45,38 @@ client = Groq(api_key=api_key)
 
 def generate_linkedin(topic, draft_text=None):
 
-
-    prompt = linkedin_prompt if not draft_text else f"{linkedin_prompt}\n\nDraft: {draft_text}"
-    response = client.chat.completions.create(
-        model="openai/gpt-oss-20b",
-        messages=[
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": topic}
-        ],
-        temperature=0.7,  # Slightly creative for LinkedIn
-        max_completion_tokens=1000, # LinkedIn posts can be longer
-        top_p=1
-    )
-    return response.choices[0].message.content
+    try:
+        prompt = linkedin_prompt if not draft_text else f"{linkedin_prompt}\n\nDraft: {draft_text}"
+        response = client.chat.completions.create(
+            model="openai/gpt-oss-20b",
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": topic}
+            ],
+            temperature=0.7,  # Slightly creative for LinkedIn
+            max_completion_tokens=1000, # LinkedIn posts can be longer
+            top_p=1
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"Error generating LinkedIn post: {str(e)}"
 
 def generate_tweet(topic, draft_text=None):
-    prompt = tweet_prompt if not draft_text else f"{tweet_prompt}\n\nDraft: {draft_text}"
-    response = client.chat.completions.create(
-        model="openai/gpt-oss-20b",
-        messages=[
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": topic}
-        ],
-        temperature=0.55,  # More concise, less creative
-        max_completion_tokens=150,  # Tweets are short
-        top_p=1
-    )
-    return response.choices[0].message.content
-
+    try:
+        prompt = tweet_prompt if not draft_text else f"{tweet_prompt}\n\nDraft: {draft_text}"
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": topic}
+            ],
+            temperature=0.55,  # More concise, less creative
+            max_completion_tokens=300,  # Tweets are short
+            top_p=1
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"Error generating tweet: {str(e)}"
 # def generate_content(topic, draft_text):
 #     linkedin_post = generate_post(topic, draft_text)
 #     tweet = generate_tweet(topic, draft_text)
