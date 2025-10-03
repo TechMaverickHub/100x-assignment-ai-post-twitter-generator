@@ -83,7 +83,7 @@ def generate_tweet(topic, draft_text=None):
 #     return linkedin_post, tweet
 
 # Gradio interface
-with gr.Blocks() as iface:
+with gr.Blocks() as demo:
     with gr.Column():
         topic_input = gr.Textbox(label="Topic")
         draft_input = gr.Textbox(label="Draft Text (Optional)", value="")
@@ -99,4 +99,5 @@ with gr.Blocks() as iface:
     linkedin_btn.click(fn=generate_linkedin, inputs=[topic_input, draft_input], outputs=[linkedin_output])
     tweet_btn.click(fn=generate_tweet, inputs=[topic_input, draft_input], outputs=[tweet_output])
 
-iface.launch()
+demo.launch()
+
