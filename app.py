@@ -1,6 +1,5 @@
 import gradio as gr
 from groq import Groq
-import time
 import os
 from dotenv import load_dotenv
 
