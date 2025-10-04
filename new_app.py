@@ -182,18 +182,21 @@ with gr.Blocks(title="AI LinkedIn + Tweet Generator (Groq, Streaming)") as demo:
 """)
         answers_box = gr.Textbox(label="✍️ Your Answers", placeholder="Type your answers here...", lines=5)
 
-    # Buttons
+    # Side-by-side Layout: LinkedIn (Left) & Tweet (Right)
     with gr.Row():
-        post_btn = gr.Button("Generate LinkedIn Post 🚀")
-        tweet_btn = gr.Button("Generate Tweet 🐦")
+        # LinkedIn Column
+        with gr.Column():
+            post_btn = gr.Button("Generate LinkedIn Post 🚀")
+            linkedin_output = gr.Textbox(label="📄 LinkedIn Post", lines=10)
+            linkedin_score = gr.Textbox(label="📊 Engagement Score (Post)")
 
-    # Outputs
-    linkedin_output = gr.Textbox(label="📄 LinkedIn Post", lines=10)
-    tweet_output = gr.Textbox(label="🐦 Tweet", lines=5)
-    linkedin_score = gr.Textbox(label="📊 Engagement Score (Post)")
-    tweet_score = gr.Textbox(label="📊 Engagement Score (Tweet)")
+        # Tweet Column
+        with gr.Column():
+            tweet_btn = gr.Button("Generate Tweet 🐦")
+            tweet_output = gr.Textbox(label="🐦 Tweet", lines=5)
+            tweet_score = gr.Textbox(label="📊 Engagement Score (Tweet)")
 
-
+    # Button Click Events
     post_btn.click(
         generate_linkedin_post,
         inputs=[topic, draft, answers_box],
