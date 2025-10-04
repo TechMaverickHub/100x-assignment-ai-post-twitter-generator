@@ -107,7 +107,7 @@ Output only the tweet.
 """
 
     tweet = ""
-    for chunk in stream_groq_response(prompt, topic, max_tokens=300, model="llama-3.1-b-instant"):
+    for chunk in stream_groq_response(prompt, topic, max_tokens=300, model="llama-3.1-8b-instant"):
         tweet += chunk
         yield tweet, ""
 
