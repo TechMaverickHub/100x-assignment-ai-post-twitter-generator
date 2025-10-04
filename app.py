@@ -1,103 +1,213 @@
-import os
 import gradio as gr
-from dotenv import load_dotenv
 from groq import Groq
-
-linkedin_prompt = """
-You are an expert LinkedIn post writer, emulating the style of Abhiroop Bhattacharyya. 
-
-Your style should remain conversational and personal—often opening with phrases like "Every once in a while..."—and always seeks to explain why something matters, not just what it does. Posts are practical and actionable, featuring real examples, concise code snippets, JSON, or mini-scenarios when relevant. Use plain text only: no headings, no bold, no emojis. Conclude every post with a clear takeaway or actionable principle that readers can apply. Prioritize clarity, simplicity, and usefulness, especially for engineers and developers.
-
-Before writing, think through a simple structure (3–5 steps):  
-- Start with a relatable scenario or common frustration.  
-- Explain the problem in simple terms.  
-- Share the solution or principle, with an example if helpful.  
-- Keep paragraphs short and conversational.  
-- End with a single clear takeaway that engineers can apply.  
-
-Do not output the checklist itself—only the final post.  
-Keep the post length around 150–180 words.  
-At the very end, add 2–4 dynamic, relevant hashtags based on the topic (short, niche, professional).
-if a draft is provided, refine it to better match this style and structure.
-"""
-
-tweet_prompt = """
-You are an expert Twitter content writer who adapts Abhiroop Bhattacharyya’s style for concise, engaging single tweets. Your style should be:
-- Conversational and clear
-- Punchy and readable in 280 characters or less
-- Practical and actionable with real-world insight
-- Plain text only; no code snippets, JSON, or emojis
-- Ends with a key takeaway or insight when possible
-
-When generating a tweet:
-1. Start with a relatable scenario or problem if possible.
-2. Keep sentences short and impactful.
-3. Focus on delivering the main insight or advice quickly.
-4. Wrap up with a concise actionable takeaway.
-5. Maintain a friendly, professional, and concise tone.
-
-After generating, review to ensure the tweet is under 280 characters, clear, and maintains the intended style. Make minimal corrections if needed.
-"""
+import time
+import os
+from dotenv import load_dotenv
 
 load_dotenv()
-api_key = os.getenv("GROQ_API_KEY")
-client = Groq(api_key=api_key)
+# -------------------------
+# Initialize Groq Client
+# -------------------------
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))  # replace with your env var
 
-def generate_linkedin(topic, draft_text=None):
+# -------------------------
+# Step 1: Ask Targeted Questions
+# -------------------------
+def ask_targeted_questions(topic, draft):
+    if not topic:
+        return "⚠️ Please enter a topic first."
+
+    return f"""
+You're writing about **{topic}**.
+Before we generate, please clarify:
+
+1️⃣ Who is your audience? (e.g., developers, founders, students)
+2️⃣ What tone should the post have? (e.g., storytelling, technical, inspirational)
+3️⃣ What’s your main goal? (e.g., share insight, promote project, provoke thought)
+4️⃣ Any hashtags, links, or CTAs to include?
+
+Type your answers below ⬇️
+"""
+
+# -------------------------
+# Streaming Response Generator
+# -------------------------
+def stream_groq_response(prompt, topic, max_tokens=800, temperature=0.7, model="openai/gpt-oss-20b"):
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": topic}
+        ],
+        temperature=temperature,
+        max_completion_tokens=max_tokens,
+        stream=True
+    )
+    for chunk in response:
+        if hasattr(chunk.choices[0].delta, "content") and chunk.choices[0].delta.content:
+            yield chunk.choices[0].delta.content
+
+# -------------------------
+# Step 2A: Generate LinkedIn Post (Streaming)
+# -------------------------
+def generate_linkedin_post(topic, draft, answers, progress=gr.Progress(track_tqdm=True)):
+    if not topic:
+        yield "⚠️ Topic is required.", ""
+        return
+
+    prompt = f"""
+You are a professional LinkedIn content strategist.
+Write a high-quality, scroll-stopping LinkedIn post.
+
+Details:
+- Topic: {topic}
+- User draft: {draft}
+- User answers/context: {answers}
+
+Guidelines:
+- 2–4 short paragraphs
+- Clear line breaks
+- Authentic, human tone
+- Actionable insight + soft CTA at the end
+
+Output only the LinkedIn post.
+"""
+    post = ""
+    score = "Calculating..."  # placeholder
+    yield post, score  # initial output
+
+    for chunk in stream_groq_response(prompt, topic, max_tokens=800):
+        post += chunk
+        yield post, score
+
+    # After streaming ends, compute engagement score
+    score = evaluate_engagement(post)
+    yield post, score
+
+# -------------------------
+# Step 2B: Generate Tweet (Streaming)
+# -------------------------
+def generate_tweet(topic, draft, answers):
+    if not topic:
+        yield "⚠️ Topic is required.", ""
+        return
+
+    prompt = f"""
+You are a viral Twitter copywriter.
+Write a catchy, insightful tweet.
+
+Details:
+- Topic: {topic}
+- Draft: {draft}
+- Context: {answers}
+
+Guidelines:
+- ≤ 280 chars
+- Add 2–3 hashtags
+- Tone: witty or wise
+- Must feel scroll-stopping
+
+Output only the tweet.
+"""
+
+    tweet = ""
+    score = "Calculating..."  # placeholder
+    yield tweet, score  # initial output
+
+    for chunk in stream_groq_response(prompt, topic, max_tokens=300, model="llama-3.1-8b-instant"):
+        tweet += chunk
+        yield tweet, score
+
+    # After streaming finishes, compute engagement
+    score = evaluate_engagement(tweet)
+    yield tweet, score  # final update with score
+
+
+# -------------------------
+# Step 3: Evaluate Engagement Score
+# -------------------------
+def evaluate_engagement(text):
+    """Ask model to rate engagement 1–10 with short explanation."""
+    if not text.strip():
+        return "⚠️ No content generated yet."
+
+    text = text[:500] # For LinkedIn posts, maybe only send the first 400–500 characters to the engagement scorer
+    prompt = f"""
+You are a social media strategist.
+Evaluate the engagement potential (1–10) of this content based on:
+- Hook strength
+- Clarity
+- Emotional pull
+- Shareability
+- Authentic tone
+
+Text:
+{text}
+
+Respond as:
+"Score: X/10 — short explanation"
+"""
 
     try:
-        prompt = linkedin_prompt if not draft_text else f"{linkedin_prompt}\n\nDraft: {draft_text}"
-        response = client.chat.completions.create(
-            model="openai/gpt-oss-20b",
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": topic}
-            ],
-            temperature=0.7,  # Slightly creative for LinkedIn
-            max_completion_tokens=1000, # LinkedIn posts can be longer
-            top_p=1
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        return f"Error generating LinkedIn post: {str(e)}"
-
-def generate_tweet(topic, draft_text=None):
-    try:
-        prompt = tweet_prompt if not draft_text else f"{tweet_prompt}\n\nDraft: {draft_text}"
         response = client.chat.completions.create(
             model="llama-3.1-8b-instant",
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": topic}
-            ],
-            temperature=0.55,  # More concise, less creative
-            max_completion_tokens=300,  # Tweets are short
+            messages=[{"role": "system", "content": prompt}],
+            temperature=0.4,
+            max_completion_tokens=50,
             top_p=1
         )
-        return response.choices[0].message.content
+        return response.choices[0].message.content.strip()
     except Exception as e:
-        return f"Error generating tweet: {str(e)}"
-# def generate_content(topic, draft_text):
-#     linkedin_post = generate_post(topic, draft_text)
-#     tweet = generate_tweet(topic, draft_text)
-#     return linkedin_post, tweet
+        print("Engagement scoring failed:", e)
+        return "⚠️ Could not calculate score"
 
-# Gradio interface
-with gr.Blocks() as demo:
-    with gr.Column():
-        topic_input = gr.Textbox(label="Topic")
-        draft_input = gr.Textbox(label="Draft Text (Optional)", value="")
-    
+# -------------------------
+# Gradio UI
+# -------------------------
+with gr.Blocks(title="AI LinkedIn + Tweet Generator (Groq, Streaming)") as demo:
+    gr.Markdown("## 🚀 AI LinkedIn + Tweet Generator\n### Powered by Groq + Gpt-OSS-20b + Llama 3.1\nCreate viral-ready posts and tweets, streamed in real-time.")
+
+    # Topic & Draft Inputs
     with gr.Row():
-        linkedin_btn = gr.Button("Generate LinkedIn Post")
-        tweet_btn = gr.Button("Generate Tweet")
-    
+        topic = gr.Textbox(label="🧠 Topic", placeholder="e.g., The future of AI in education")
+        draft = gr.Textbox(label="📝 Optional Draft", placeholder="Paste your notes or rough idea...")
+
+    # Accordion for constant targeted questions
+    with gr.Accordion("🎯 Targeted Questions (Click to View)", open=True):
+        gr.Markdown("""
+1️⃣ Who is your audience? (e.g., developers, founders, students)  
+2️⃣ What tone should the post have? (e.g., storytelling, technical, inspirational)  
+3️⃣ What’s your main goal? (e.g., share insight, promote project, provoke thought)  
+4️⃣ Any hashtags, links, or CTAs to include?
+""")
+        answers_box = gr.Textbox(label="✍️ Your Answers", placeholder="Type your answers here...", lines=5)
+
+    # Side-by-side Layout: LinkedIn (Left) & Tweet (Right)
     with gr.Row():
-        linkedin_output = gr.Textbox(label="LinkedIn Post", lines=5, max_lines=None, interactive=True)
-        tweet_output = gr.Textbox(label="Tweet", lines=3, max_lines=None, interactive=True)
-    
-    linkedin_btn.click(fn=generate_linkedin, inputs=[topic_input, draft_input], outputs=[linkedin_output])
-    tweet_btn.click(fn=generate_tweet, inputs=[topic_input, draft_input], outputs=[tweet_output])
+        # LinkedIn Column
+        with gr.Column():
+            post_btn = gr.Button("Generate LinkedIn Post 🚀")
+            linkedin_output = gr.Textbox(label="📄 LinkedIn Post", lines=10)
+            linkedin_score =  gr.Text(label="📊 Engagement Score (Post)")
 
-demo.launch()
+        # Tweet Column
+        with gr.Column():
+            tweet_btn = gr.Button("Generate Tweet 🐦")
+            tweet_output = gr.Textbox(label="🐦 Tweet", lines=5)
+            tweet_score =  gr.Text(label="📊 Engagement Score (Tweet)")
 
+    # Button Click Events
+    post_btn.click(
+        generate_linkedin_post,
+        inputs=[topic, draft, answers_box],
+        outputs=[linkedin_output, linkedin_score]
+    )
+
+    tweet_btn.click(
+        generate_tweet,
+        inputs=[topic, draft, answers_box],
+        outputs=[tweet_output, tweet_score]
+    )
+
+if __name__ == "__main__":
+    demo.launch()
