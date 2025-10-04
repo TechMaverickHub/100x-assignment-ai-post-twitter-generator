@@ -165,7 +165,7 @@ Respond as:
 # Gradio UI
 # -------------------------
 with gr.Blocks(title="AI LinkedIn + Tweet Generator (Groq, Streaming)") as demo:
-    gr.Markdown("## 🚀 AI LinkedIn + Tweet Generator\n### Powered by Groq + Llama 3.1\nCreate viral-ready posts and tweets, streamed in real-time.")
+    gr.Markdown("## 🚀 AI LinkedIn + Tweet Generator\n### Powered by Groq + Gpt-OSS-20b + Llama 3.1\nCreate viral-ready posts and tweets, streamed in real-time.")
 
     # Topic & Draft Inputs
     with gr.Row():
@@ -188,13 +188,13 @@ with gr.Blocks(title="AI LinkedIn + Tweet Generator (Groq, Streaming)") as demo:
         with gr.Column():
             post_btn = gr.Button("Generate LinkedIn Post 🚀")
             linkedin_output = gr.Textbox(label="📄 LinkedIn Post", lines=10)
-            linkedin_score = gr.Textbox(label="📊 Engagement Score (Post)")
+            linkedin_score =  gr.Text(label="📊 Engagement Score (Post)")
 
         # Tweet Column
         with gr.Column():
             tweet_btn = gr.Button("Generate Tweet 🐦")
             tweet_output = gr.Textbox(label="🐦 Tweet", lines=5)
-            tweet_score = gr.Textbox(label="📊 Engagement Score (Tweet)")
+            tweet_score =  gr.Text(label="📊 Engagement Score (Tweet)")
 
     # Button Click Events
     post_btn.click(
