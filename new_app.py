@@ -52,7 +52,8 @@ def stream_groq_response(prompt, topic, max_tokens=800, temperature=0.7, model="
 # -------------------------
 def generate_linkedin_post(topic, draft, answers, progress=gr.Progress(track_tqdm=True)):
     if not topic:
-        return "⚠️ Topic is required.", ""
+        yield "⚠️ Topic is required.", ""
+        return
 
     prompt = f"""
 You are a professional LinkedIn content strategist.
@@ -72,9 +73,12 @@ Guidelines:
 Output only the LinkedIn post.
 """
     post = ""
+    score = "Calculating..."  # placeholder
+    yield post, score  # initial output
+
     for chunk in stream_groq_response(prompt, topic, max_tokens=800):
         post += chunk
-        yield post, ""  # stream live post content
+        yield post, score
 
     # After streaming ends, compute engagement score
     score = evaluate_engagement(post)
@@ -107,9 +111,12 @@ Output only the tweet.
 """
 
     tweet = ""
+    score = "Calculating..."  # placeholder
+    yield tweet, score  # initial output
+
     for chunk in stream_groq_response(prompt, topic, max_tokens=300, model="llama-3.1-8b-instant"):
         tweet += chunk
-        yield tweet, ""
+        yield tweet, score
 
     # After streaming finishes, compute engagement
     score = evaluate_engagement(tweet)
@@ -124,6 +131,7 @@ def evaluate_engagement(text):
     if not text.strip():
         return "⚠️ No content generated yet."
 
+    text = text[:500] # For LinkedIn posts, maybe only send the first 400–500 characters to the engagement scorer
     prompt = f"""
 You are a social media strategist.
 Evaluate the engagement potential (1–10) of this content based on:
@@ -140,14 +148,18 @@ Respond as:
 "Score: X/10 — short explanation"
 """
 
-    response = client.chat.completions.create(
-        model="openai/gpt-oss-20b",
-        messages=[{"role": "system", "content": prompt}],
-        temperature=0.4,
-        max_completion_tokens=150,
-        top_p=1
-    )
-    return response.choices[0].message.content.strip()
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "system", "content": prompt}],
+            temperature=0.4,
+            max_completion_tokens=50,
+            top_p=1
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print("Engagement scoring failed:", e)
+        return "⚠️ Could not calculate score"
 
 # -------------------------
 # Gradio UI
