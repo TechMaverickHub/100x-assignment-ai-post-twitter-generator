@@ -167,26 +167,32 @@ Respond as:
 with gr.Blocks(title="AI LinkedIn + Tweet Generator (Groq, Streaming)") as demo:
     gr.Markdown("## 🚀 AI LinkedIn + Tweet Generator\n### Powered by Groq + Llama 3.1\nCreate viral-ready posts and tweets, streamed in real-time.")
 
+    # Topic & Draft Inputs
     with gr.Row():
         topic = gr.Textbox(label="🧠 Topic", placeholder="e.g., The future of AI in education")
         draft = gr.Textbox(label="📝 Optional Draft", placeholder="Paste your notes or rough idea...")
 
-    ask_btn = gr.Button("Ask Targeted Questions 💬")
-    questions_box = gr.Textbox(label="🎯 Targeted Questions", interactive=False)
+    # Accordion for constant targeted questions
+    with gr.Accordion("🎯 Targeted Questions (Click to View)", open=True):
+        gr.Markdown("""
+1️⃣ Who is your audience? (e.g., developers, founders, students)  
+2️⃣ What tone should the post have? (e.g., storytelling, technical, inspirational)  
+3️⃣ What’s your main goal? (e.g., share insight, promote project, provoke thought)  
+4️⃣ Any hashtags, links, or CTAs to include?
+""")
+        answers_box = gr.Textbox(label="✍️ Your Answers", placeholder="Type your answers here...", lines=5)
 
-    answers_box = gr.Textbox(label="✍️ Your Answers", placeholder="Type your answers here...", lines=5)
-
+    # Buttons
     with gr.Row():
         post_btn = gr.Button("Generate LinkedIn Post 🚀")
         tweet_btn = gr.Button("Generate Tweet 🐦")
 
+    # Outputs
     linkedin_output = gr.Textbox(label="📄 LinkedIn Post", lines=10)
     tweet_output = gr.Textbox(label="🐦 Tweet", lines=5)
-
     linkedin_score = gr.Textbox(label="📊 Engagement Score (Post)")
     tweet_score = gr.Textbox(label="📊 Engagement Score (Tweet)")
 
-    ask_btn.click(ask_targeted_questions, inputs=[topic, draft], outputs=questions_box)
 
     post_btn.click(
         generate_linkedin_post,
